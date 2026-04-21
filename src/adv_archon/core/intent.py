@@ -1,11 +1,13 @@
-"""Intent parsing"""
-from dataclasses import dataclass
+"""Representación de intención — el análisis real lo hace el LLM en el bucle del agente."""
+from dataclasses import dataclass, field
+
 
 @dataclass
 class Intent:
-    action: str
-    params: dict = None
-    
+    raw: str
+    action: str = ""
+    params: dict = field(default_factory=dict)
+
     @staticmethod
-    def parse(text: str):
-        return Intent(action=text, params={})
+    def from_text(text: str) -> "Intent":
+        return Intent(raw=text, action=text)
