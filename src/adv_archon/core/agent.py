@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from adv_archon.plugins.loader import PluginLoader
     from adv_archon.tools.files import FilesTool
     from adv_archon.tools.mac_apps import MacAppsTool
+    from adv_archon.tools.web import WebTool
 
 MAX_TOOL_ITERATIONS = 6
 
@@ -43,6 +44,11 @@ Herramientas disponibles:
   remember         {"key": "clave", "value": "valor a recordar"}
   recall           {"query": "qué quiero recordar"}
 
+  Web / Internet
+  ───────────────────
+  search_web       {"query": "lo que quiero buscar", "max_results": 5}
+  browse_url       {"url": "https://ejemplo.com"}
+
   Aplicaciones Mac
   ───────────────────
   list_running_apps   {}
@@ -65,6 +71,8 @@ REGLAS ABSOLUTAS
 3. Cuando uses una herramienta responde SOLO el bloque ```tool … ```.
 4. Tras recibir el resultado de la herramienta, continúa con naturalidad.
 5. Sé conciso, directo y amigable.
+6. NUNCA repitas la misma búsqueda web dos veces. Si search_web ya devolvió
+   resultados, sintetiza lo que encontraste aunque sea parcial.
 """
 
 
@@ -77,6 +85,7 @@ class Agent:
         memory: "Memory",
         consent: "ConsentGate",
         plugins: "PluginLoader",
+        web: "WebTool | None" = None,
     ):
         self.llm = llm
         self.files = files
@@ -84,6 +93,7 @@ class Agent:
         self.memory = memory
         self.consent = consent
         self.plugins = plugins
+        self.web = web
         self._history: list[dict] = []
 
     # ------------------------------------------------------------------
@@ -100,6 +110,7 @@ class Agent:
         plugin_hints = self.plugins.system_prompt_hints()
         system = SYSTEM_PROMPT + (f"\n\n{plugin_hints}" if plugin_hints else "")
 
+        last_tool_call: dict | None = None
         for _ in range(MAX_TOOL_ITERATIONS):
             response = self.llm.chat(messages=self._history, system=system)
             tool_call = self._extract_tool_call(response)
@@ -107,6 +118,23 @@ class Agent:
             if tool_call is None:
                 self._history.append({"role": "assistant", "content": response})
                 return response
+
+            # Si el LLM repite exactamente la misma tool call, cortar el loop
+            if tool_call == last_tool_call:
+                self._history.append({"role": "assistant", "content": response})
+                self._history.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "Ya ejecutaste esa búsqueda y obtuviste el resultado anterior. "
+                            "Resume lo que encontraste y responde al usuario con lo que tienes."
+                        ),
+                    }
+                )
+                final = self.llm.chat(messages=self._history, system=system)
+                self._history.append({"role": "assistant", "content": final})
+                return final
+            last_tool_call = tool_call
 
             # Ejecutar herramienta
             tool_result = self._run_tool(tool_call["tool"], tool_call.get("params", {}))
@@ -158,6 +186,16 @@ class Agent:
     # ------------------------------------------------------------------
     def _run_tool(self, tool: str, params: dict) -> str:
         try:
+            # ── Web ───────────────────────────────────────────────────
+            if tool == "search_web":
+                if self.web is None:
+                    return "Búsqueda web no disponible (instala ddgs)."
+                return self.web.search(params["query"], params.get("max_results", 5))
+            if tool == "browse_url":
+                if self.web is None:
+                    return "Navegación web no disponible (instala ddgs)."
+                return self.web.fetch(params["url"])
+
             # ── Archivos ──────────────────────────────────────────────
             if tool == "read_file":
                 return self.files.read(params["path"])

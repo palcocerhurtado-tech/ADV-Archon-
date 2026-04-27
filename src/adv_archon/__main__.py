@@ -6,6 +6,7 @@ from adv_archon.core.agent import Agent
 from adv_archon.integrations.ollama import OllamaClient
 from adv_archon.tools.files import FilesTool
 from adv_archon.tools.mac_apps import MacAppsTool
+from adv_archon.tools.web import WebTool
 from adv_archon.plugins.loader import PluginLoader
 from adv_archon.ui.chat import ChatUI
 
@@ -20,6 +21,7 @@ def main():
 
     files = FilesTool(consent=consent, memory=memory)
     mac = MacAppsTool(consent=consent)
+    web = WebTool()
 
     plugins = PluginLoader()
     plugins.load_directory(consent=consent, memory=memory)
@@ -31,6 +33,7 @@ def main():
         memory=memory,
         consent=consent,
         plugins=plugins,
+        web=web,
     )
 
     if cfg.index_on_start:
