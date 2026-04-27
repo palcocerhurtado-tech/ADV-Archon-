@@ -46,8 +46,9 @@ Herramientas disponibles:
 
   Web / Internet
   ───────────────────
-  search_web       {"query": "lo que quiero buscar", "max_results": 5}
-  browse_url       {"url": "https://ejemplo.com"}
+  search_web         {"query": "lo que quiero buscar", "max_results": 5}
+  browse_url         {"url": "https://ejemplo.com"}
+  playwright_browse  {"url": "https://ejemplo.com"}  ← browser real, ideal para tiendas y SPAs con JS
 
   Aplicaciones Mac
   ───────────────────
@@ -195,6 +196,10 @@ class Agent:
                 if self.web is None:
                     return "Navegación web no disponible (instala ddgs)."
                 return self.web.fetch(params["url"])
+            if tool == "playwright_browse":
+                if self.web is None:
+                    return "Herramienta web no disponible."
+                return self.web.playwright_browse(params["url"])
 
             # ── Archivos ──────────────────────────────────────────────
             if tool == "read_file":

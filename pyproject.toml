@@ -21,6 +21,9 @@ voice = [
     "faster-whisper>=1.0.0",
     "pyttsx3>=2.90",
 ]
+browser = [
+    "playwright>=1.44.0",
+]
 
 [project.scripts]
 archon = "adv_archon.__main__:main"
